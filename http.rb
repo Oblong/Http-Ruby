@@ -11,14 +11,20 @@ module HTTP
 
 
   class FromRack
-    def initialize
+    def initialize(app)
+      @app = app
       @threadMap = {}
     end
 
     def each
-      @threadMap['response.body'] = Thread.new {
-         yield @response.body.pop 
-      }.join
+      loop {
+        data = @response.body.pop 
+        if data.nil?
+          break
+        else
+          yield data
+        end
+      } 
     end
 
     def call env
@@ -47,16 +53,27 @@ module HTTP
         @request.emit('end')
       }
 
-      @response = ServerResponse.new 'threadMap' => @threadMap 
-
       # if we block on the header writing code and then
       # yield when it exits, we can achieve the documented
       # results
       @threadMap['response.header'] = Thread.new {
         loop {
-          sleep 0.1
+          sleep 2
         }
-      }.join
+      }
+
+      @threadMap['response.body'] = false
+      @response = ServerResponse.new 'threadMap' => @threadMap 
+
+
+      # Now the request and the response has been created
+      # we can call the app that will handle the functions
+      # in a new thread
+      @threadMap['app'] = Thread.new {
+        @app.call(env, @request, @response)
+      }
+
+      @threadMap['response.header'].join
 
       # If the above thread is run, then we can return with
       # the headers + the yield for the call
@@ -131,18 +148,23 @@ module HTTP
     #    as the second argument."
     #
     def writeHead(*args) #statusCode, reasonPhrase = nil, headers = nil )
-      # First take the end
-      headers = args.pop
+      if args.length > 0
+        # First take the end
+        headers = args.pop
+        headers.each { | key, value|
+          @headerMap[key] = value
+        }
 
-      # And the beginning
-      @statusCode = args.shift
+        # And the beginning
+        @statusCode = args.shift
 
-      # If there is anything left, use that
-      reasonPhrase = args[0] if args.length
+        # If there is anything left, use that
+        reasonPhrase = args[0] if args.length
+      end
 
-      @headerFull = [ @statusCode, headers ]
+      @headerFull = [ @statusCode, @headerMap ]
 
-      @threadMap['response.header'].kill
+      Thread.kill (@threadMap['response.header']) if @threadMap['response.header'].status.class == String 
     end
 
     def setHeader(name, value)
@@ -163,7 +185,7 @@ module HTTP
       #   called, it will switch to implicit 
       #   header mode and flush the implicit 
       #   headers."
-      @threadMap['response.header'].kill if @threadMap['response.header'].status == 'run'
+      writeHead
 
       @body << chunk
     end
@@ -178,7 +200,7 @@ module HTTP
       #   followed by response.end()."
       write(data, encoding) unless data.nil?
 
-      @threadMap['response.body'].kill
+      @body << nil
     end
   end
 
