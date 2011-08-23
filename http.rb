@@ -1,12 +1,14 @@
 require 'EventEmitter'
 require 'thread'
+require 'rack/response'
+
+Thread.abort_on_exception = true
 #
 # Implemented based on documentation from http://nodejs.org/docs/v0.5.0/api/http.html
 # Quotations are used wherein relevant
 #
 module HTTP
   attr_reader :agent
-  include EventEmitter
 
   def self.createServer(&requestListener)
     @@serverInstance
@@ -17,6 +19,7 @@ module HTTP
   end
 
   class Server
+    include EventEmitter
     def initialize; end
     def listen(port, fn)
     end
@@ -28,19 +31,6 @@ module HTTP
     def initialize(app)
       @app = app
       @threadMap = {}
-    end
-
-    def each
-      loop {
-        data = @response.body.pop 
-        if data.nil?
-          break
-        else
-          yield data
-        end
-      } 
-
-      HTTP::server.emit('close')
     end
 
     def call env
@@ -93,28 +83,39 @@ module HTTP
       # Now the request and the response has been created
       # we can call the app that will handle the functions
       # in a new thread
+      # This is probably still insufficient placement
       @threadMap['app'] = Thread.new {
-        # This is probably still insufficient placement
         HTTP::server.emit('request', [@request, @response]) 
-
         @request.threadMap['request.data'].run
         @app.call(env, @request, @response)
       }
-
       @threadMap['response.header'].join
 
+      rackresponse = Rack::Response.new
       # If the above thread is run, then we can return with
       # the headers + the yield for the call
-      statusCode, headers = @response.headerFull
+      rackresponse.status, header = @response.headerFull
+      header.each do | key, value |
+        rackresponse.header[key] = value
+      end
 
-      [ statusCode,
-        headers,
-        self
-      ]
+      loop {
+        data = @response.body.pop 
+        if data.nil?
+          break
+        else
+          rackresponse.write data
+        end
+      } 
+
+      HTTP::server.emit('close')
+      rackresponse.finish
     end
   end
 
   class ServerRequest
+    include EventEmitter
+
     attr_accessor :method, :url, :headers, :trailers, :httpVersion, :connection, :threadMap, :res
 
     def initialize(options = {})
@@ -141,6 +142,8 @@ module HTTP
   end
 
   class ServerResponse
+    include EventEmitter
+
     attr_reader :statusCode, :headerFull, :body
 
     def initialize(options = {})
