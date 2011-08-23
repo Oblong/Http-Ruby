@@ -46,7 +46,11 @@ module HTTP
         'threadMap' => @threadMap
       })
 
+      # We have to make sure that this is called after the app thread starts
+      # and doesn't just start emitting events prior to it running
       @request.threadMap['request.data'] = @threadMap['request.data'] = Thread.new {
+        Thread.stop
+
         env['rack.input'].each do | data |
           @request.emit('data', data)
         end
@@ -65,10 +69,18 @@ module HTTP
 
       @response = ServerResponse.new 'threadMap' => @threadMap 
 
+      # Although not documented on the site, socket.io in
+      # lib/transports/http.rb HTTPTransport.prototype.handleRequest (0.7.9)
+      # appears to assume that this variable exists. So we put it
+      # here to make it happy.
+      @request.res = @response
+
       # Now the request and the response has been created
       # we can call the app that will handle the functions
       # in a new thread
       @threadMap['app'] = Thread.new {
+        # This is probably still insufficient placement
+        @request.threadMap['request.data'].run
         @app.call(env, @request, @response)
       }
 
@@ -95,7 +107,7 @@ module HTTP
   end
 
   class ServerRequest
-    attr_reader :method, :url, :headers, :trailers, :httpVersion, :connection, :threadMap
+    attr_accessor :method, :url, :headers, :trailers, :httpVersion, :connection, :threadMap, :res
 
     def initialize(options = {})
       @trailers = nil
@@ -149,19 +161,24 @@ module HTTP
     def writeHead(*args) #statusCode, reasonPhrase = nil, headers = nil )
       if args.length > 0
 
-        headers = args.pop
-        # First take the end
-        headers.each { | key, value|
-          @headerMap[key] = value
-        }
+        # It looks like that if writeHead is passed with one argument,
+        # then it defaults to the status code
+        #
+        # As a convenience we typecast it to an int, just to try to
+        # appease rack
+        @statusCode = (args.shift).to_i
 
+        # With the remainder going here if necessry
         if args.length > 0
-          # And the beginning
-          @statusCode = args.shift
-
-          # If there is anything left, use that
-          # reasonPhrase = args[0] if args.length
+          headers = args.pop
+          # First take the end
+          headers.each { | key, value|
+            @headerMap[key] = value
+          }
         end
+
+        # If there is anything left, use that
+        # reasonPhrase = args[0] if args.length
       end
 
       @headerFull = [ @statusCode, @headerMap ]
