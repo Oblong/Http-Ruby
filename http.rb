@@ -12,6 +12,10 @@ module HTTP
     @@serverInstance
   end
 
+  def self.server
+    @@serverInstance
+  end
+
   class Server
     def initialize; end
     def listen(port, fn)
@@ -35,6 +39,8 @@ module HTTP
           yield data
         end
       } 
+
+      HTTP::server.emit('close')
     end
 
     def call env
@@ -89,7 +95,7 @@ module HTTP
       # in a new thread
       @threadMap['app'] = Thread.new {
         # This is probably still insufficient placement
-        HTTP::createServer.emit('request', [@request, @response]) 
+        HTTP::server.emit('request', [@request, @response]) 
 
         @request.threadMap['request.data'].run
         @app.call(env, @request, @response)
