@@ -9,7 +9,16 @@ module HTTP
   include EventEmitter
 
   def self.createServer(&requestListener)
+    @@serverInstance
   end
+
+  class Server
+    def initialize; end
+    def listen(port, fn)
+    end
+  end
+
+  @@serverInstance = Server.new
 
   class FromRack
     def initialize(app)
@@ -80,6 +89,8 @@ module HTTP
       # in a new thread
       @threadMap['app'] = Thread.new {
         # This is probably still insufficient placement
+        HTTP::createServer.emit('request', [@request, @response]) 
+
         @request.threadMap['request.data'].run
         @app.call(env, @request, @response)
       }
@@ -95,15 +106,6 @@ module HTTP
         self
       ]
     end
-  end
-
-  class Server
-    def initialize
-    end
-
-    def close
-      raise NotImplementedError
-    end 
   end
 
   class ServerRequest
