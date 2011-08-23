@@ -1,3 +1,5 @@
+require 'EventEmitter'
+require 'thread'
 #
 # Implemented based on documentation from http://nodejs.org/docs/v0.5.0/api/http.html
 # Quotations are used wherein relevant
@@ -8,7 +10,6 @@ module HTTP
 
   def self.createServer(&requestListener)
   end
-
 
   class FromRack
     def initialize(app)
@@ -45,7 +46,7 @@ module HTTP
         'threadMap' => @threadMap
       })
 
-      @threadMap['request.data'] = Thread.new {
+      @request.threadMap['request.data'] = @threadMap['request.data'] = Thread.new {
         env['rack.input'].each do | data |
           @request.emit('data', data)
         end
@@ -62,9 +63,7 @@ module HTTP
         }
       }
 
-      @threadMap['response.body'] = false
       @response = ServerResponse.new 'threadMap' => @threadMap 
-
 
       # Now the request and the response has been created
       # we can call the app that will handle the functions
@@ -96,7 +95,7 @@ module HTTP
   end
 
   class ServerRequest
-    attr_reader :method, :url, :headers, :trailers, :httpVersion, :connection
+    attr_reader :method, :url, :headers, :trailers, :httpVersion, :connection, :threadMap
 
     def initialize(options = {})
       @trailers = nil
@@ -149,22 +148,27 @@ module HTTP
     #
     def writeHead(*args) #statusCode, reasonPhrase = nil, headers = nil )
       if args.length > 0
-        # First take the end
+
         headers = args.pop
+        # First take the end
         headers.each { | key, value|
           @headerMap[key] = value
         }
 
-        # And the beginning
-        @statusCode = args.shift
+        if args.length > 0
+          # And the beginning
+          @statusCode = args.shift
 
-        # If there is anything left, use that
-        reasonPhrase = args[0] if args.length
+          # If there is anything left, use that
+          # reasonPhrase = args[0] if args.length
+        end
       end
 
       @headerFull = [ @statusCode, @headerMap ]
 
-      Thread.kill (@threadMap['response.header']) if @threadMap['response.header'].status.class == String 
+      if @threadMap['response.header'].status.class == String 
+        Thread.kill @threadMap['response.header'] 
+      end
     end
 
     def setHeader(name, value)
