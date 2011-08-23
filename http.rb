@@ -1,6 +1,5 @@
 require 'EventEmitter'
 require 'thread'
-require 'rack/response'
 
 Thread.abort_on_exception = true
 #
@@ -42,6 +41,7 @@ module HTTP
           yield data
         end
       } 
+
       HTTP::server.emit('close')
     end
 
@@ -95,11 +95,12 @@ module HTTP
       # Now the request and the response has been created
       # we can call the app that will handle the functions
       # in a new thread
-      # This is probably still insufficient placement
       @threadMap['app'] = Thread.new {
-        HTTP::server.emit('request', [@request, @response]) 
+
+        # This is probably still insufficient placement
+        HTTP::server.emit('request', @request, @response) 
+
         @request.threadMap['request.data'].run
-        @app.call(env, @request, @response)
       }
       @threadMap['response.header'].join
 

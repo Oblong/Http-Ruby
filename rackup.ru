@@ -1,7 +1,6 @@
 require 'http'
-require 'testapp'
+use HTTP::FromRack
 
 map "/" do
-  use HTTP::FromRack
-  run MyTest.new
+  require 'testapp'
 end
