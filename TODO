@@ -1,4 +1,6 @@
 (2011-08-23) 
+Bugs:
+ * Partial writes seem to hang in rainbows!
 
  * Server upgrade
  * HTTPs

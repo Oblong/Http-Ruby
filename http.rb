@@ -33,6 +33,18 @@ module HTTP
       @threadMap = {}
     end
 
+    def each 
+      loop {
+        data = @response.body.pop 
+        if data.nil?
+          break
+        else
+          yield data
+        end
+      } 
+      HTTP::server.emit('close')
+    end
+
     def call env
       httpHeaders = env.reject{ | key, value | key.class != String || key[0..3] != 'HTTP' }
       pairwise = {}
@@ -91,25 +103,11 @@ module HTTP
       }
       @threadMap['response.header'].join
 
-      rackresponse = Rack::Response.new
       # If the above thread is run, then we can return with
       # the headers + the yield for the call
-      rackresponse.status, header = @response.headerFull
-      header.each do | key, value |
-        rackresponse.header[key] = value
-      end
+      status, header = @response.headerFull
 
-      loop {
-        data = @response.body.pop 
-        if data.nil?
-          break
-        else
-          rackresponse.write data
-        end
-      } 
-
-      HTTP::server.emit('close')
-      rackresponse.finish
+      [ status, header, self ]
     end
   end
 
