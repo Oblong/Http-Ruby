@@ -198,9 +198,11 @@ module HTTP
         if args.length > 0
           headers = args.pop
           # First take the end
-          headers.each { | key, value|
-            @headerMap[key] = value
-          }
+          unless headers.nil?
+            headers.each { | key, value|
+              @headerMap[key] = value
+            }
+          end
         end
 
         # If there is anything left, use that
