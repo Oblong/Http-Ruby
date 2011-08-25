@@ -27,9 +27,14 @@ module HTTP
   @@serverInstance = Server.new
 
   class FromRack
-    def initialize(app)
+    def initialize(app, options = {})
       @app = app
       @threadMap = {}
+      @paths = []
+
+      options.each { | key, value |
+        instance_variable_set("@#{key}", value)
+      }
     end
 
     def each 
@@ -46,6 +51,17 @@ module HTTP
     end
 
     def call env
+      matched = false 
+      @paths.each do | path |
+        matched |= (env['REQUEST_URI'][0..path.length - 1] == path)
+      end
+
+      unless matched
+        return @app.call(env) if @app.respond_to? :call
+        return
+      end
+
+
       httpHeaders = env.reject{ | key, value | key.class != String || key[0..3] != 'HTTP' }
       pairwise = {}
 
@@ -176,7 +192,7 @@ module HTTP
         #
         # As a convenience we typecast it to an int, just to try to
         # appease rack
-        @statusCode = (args.shift).to_i
+        @statusCode = (args.shift)
 
         # With the remainder going here if necessry
         if args.length > 0

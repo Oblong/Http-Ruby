@@ -1,6 +1,12 @@
 require 'http'
-use HTTP::FromRack
+
+use HTTP::FromRack, :paths => [ '/nodestyle' ]
 
 map "/" do
-  require 'testapp'
+  require 'rubystyle'
+  run RubyStyle.new
+end
+
+map "/nodestyle" do
+  require 'nodestyle'
 end
