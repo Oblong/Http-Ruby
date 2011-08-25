@@ -84,8 +84,10 @@ module HTTP
       @request.threadMap['request.data'] = @threadMap['request.data'] = Thread.new {
         Thread.stop
 
-        env['rack.input'].each do | data |
-          @request.emit('data', data)
+        unless env['rack.input'].nil?
+          env['rack.input'].each do | data |
+            @request.emit('data', data)
+          end
         end
 
         @request.emit('end')
