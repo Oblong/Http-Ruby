@@ -211,6 +211,11 @@ module HTTP
         # reasonPhrase = args[0] if args.length
       end
 
+      # Rack::Lint::LintError: Content-Type header found in 304 response, not allowed
+      if @statusCode.to_i == 304 and @headerMap.has_key? 'Content-Type'
+        @headerMap.delete 'Content-Type'
+      end
+
       @headerFull = [ @statusCode, @headerMap ]
 
       if @threadMap['response.header'].status.class == String 
