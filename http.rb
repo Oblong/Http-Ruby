@@ -11,17 +11,6 @@ Thread.abort_on_exception = true
 # Implemented based on documentation from http://nodejs.org/docs/v0.5.0/api/http.html
 # Quotations are used wherein relevant
 #
-module JSArray
-  @data = {}
-
-  def [](key)
-    @data[key]
-  end
-
-  def []=(key, value)
-    @data[key] = value
-  end
-end
 
 module HTTP
   attr_reader :agent
@@ -156,12 +145,20 @@ module HTTP
 
   class ServerRequest
     include EventEmitter
-    include JSArray
 
     attr_accessor :method, :url, :headers, :trailers, :httpVersion, :connection, :threadMap, :res
 
+    def [](key)
+      @data[key]
+    end
+
+    def []=(key, value)
+      @data[key] = value
+    end
+
     def initialize(options = {})
       @trailers = nil
+      @data = {}
       @connection = nil
       @encoding = nil
 
@@ -185,12 +182,12 @@ module HTTP
 
   class ServerResponse
     include EventEmitter
-    include JSArray
 
     attr_reader :statusCode, :headerFull, :body
 
     def initialize(options = {})
       @headerFull = ''
+      @data = {}
       @headerMap = {
         'Content-Type' => 'text/plain'
       }
@@ -200,6 +197,14 @@ module HTTP
       options.each { | key, value |
         instance_variable_set("@#{key}", value)
       }
+    end
+
+    def [](key)
+      @data[key]
+    end
+
+    def []=(key, value)
+      @data[key] = value
     end
 
     def writeContinue
