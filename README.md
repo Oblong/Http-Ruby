@@ -11,3 +11,6 @@ You can also get [Ruby Socket.IO](https://github.com/Oblong/Socket.io-Ruby) as p
 
 ## Notes
 This was designed with [thin](http://code.macournoyer.com/thin/) and eventually [rainbows!](http://rainbows.rubyforge.org/) in mind.
+
+## License
+MIT

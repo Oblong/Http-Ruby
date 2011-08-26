@@ -1,3 +1,7 @@
+# node.js like HTTP module for ruby
+# Copyright(c) 2011 Oblong <chris@oblong.com>
+# MIT Licensed
+
 require 'EventEmitter'
 require 'thread'
 # require 'yaml'
