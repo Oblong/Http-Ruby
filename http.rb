@@ -129,7 +129,7 @@ module HTTP
       @response = ServerResponse.new 'threadMap' => @threadMap 
 
       # Although not documented on the site, socket.io in
-      # lib/transports/http.rb HTTPTransport.prototype.handleRequest (0.7.9)
+      # lib/transports/http.js HTTPTransport.prototype.handleRequest (0.7.9)
       # appears to assume that this variable exists. So we put it
       # here to make it happy.
       @request.res = @response
