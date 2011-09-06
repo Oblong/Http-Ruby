@@ -302,7 +302,11 @@ module HTTP
       #   calling response.write(data, encoding) 
       #   followed by response.end()."
       write(data, encoding) unless data.nil?
-
+      begin
+        # raise Exception
+      rescue Exception => e
+        puts e.backtrace
+      end
       @body << nil
     end
   end
